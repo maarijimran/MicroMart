@@ -8,9 +8,6 @@
 **/*.tsbuildinfo
 **/.env
 **/*.log
-**/.agents
-**/.claude
-**/.windsurf
 **/postman
 **/test
 **/coverage

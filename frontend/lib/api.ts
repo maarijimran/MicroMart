@@ -110,4 +110,4 @@ export const seedWallet = (token: string, userId: string, balance: number, curre
   request<Wallet>('POST', `/wallets/${userId}/seed`, { token, body: { balance, currency } });
 
 export const getPaymentByOrder = (token: string, orderId: string) =>
-  request<Payment>('GET', `/payments/order/${orderId}`);
+  request<Payment>('GET', `/payments/order/${orderId}`, { token });

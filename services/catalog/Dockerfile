@@ -8,8 +8,7 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app/services/catalog
 COPY services/catalog/package*.json ./
-# --ignore-scripts skips the `prisma skills sync` postinstall (it fetches from
-# GitHub); nothing in this stage needs a native install script.
+# Nothing in this stage needs an install script, so skip them for a faster, safer build.
 RUN npm ci --ignore-scripts
 COPY services/catalog/ ./
 # prisma7.config.ts reads DATABASE_URL; `generate` never connects, it only needs a value.

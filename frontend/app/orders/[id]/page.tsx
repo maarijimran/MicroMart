@@ -83,8 +83,6 @@ function OrderDetail({ orderId }: { orderId: string }) {
     );
   }
 
-  const live = IN_FLIGHT.includes(order.status);
-
   return (
     <div>
       <Link href="/orders" className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted hover:text-fg">
@@ -154,7 +152,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
               </div>
             ) : (
               <p className="mt-3 text-sm text-muted">
-                {live ? 'Pending' : 'No payment was taken for this order.'}
+                {order.status === 'cancelled' ? 'No payment was taken for this order.' : 'Pending'}
               </p>
             )}
           </Card>

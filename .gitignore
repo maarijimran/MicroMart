@@ -21,12 +21,7 @@ loadtest/.bin/
 # Logs
 *.log
 
-# Editor / AI-assistant files generated per machine
-# (e.g. `prisma skills sync` writes these into services on npm install)
-.agents/
-.claude/
-.windsurf/
-skills-lock.json
+# Editor / OS files
 .vscode/
 .idea/
 .DS_Store
