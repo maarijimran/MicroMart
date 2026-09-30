@@ -1,0 +1,109 @@
+{
+  "info": {
+    "name": "MicroMart Gateway",
+    "description": "The single front door for the whole system. Run through this collection top to bottom for a full, real checkout: register -> login -> (admin) create category/product/stock -> (admin) seed the customer's wallet -> checkout -> check order status -> check payment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "customerAccessToken", "value": "" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "productId", "value": "" },
+    { "key": "orderId", "value": "" }
+  ],
+  "item": [
+    { "name": "Health check", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/health" } },
+    {
+      "name": "Register customer",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"ada@example.com\",\n  \"password\": \"StrongPass1!\",\n  \"firstName\": \"Ada\"\n}" },
+        "url": "{{baseUrl}}/auth/register"
+      }
+    },
+    {
+      "name": "Login as customer",
+      "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "pm.collectionVariables.set('customerAccessToken', body.accessToken);"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"ada@example.com\",\n  \"password\": \"StrongPass1!\"\n}" },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "Login as admin",
+      "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "pm.collectionVariables.set('adminAccessToken', body.accessToken);"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"StrongPass1!\"\n}" },
+        "url": "{{baseUrl}}/auth/login"
+      },
+      "description": "Requires an account already promoted to role=admin directly in auth_db — see Catalog's setup.md."
+    },
+    {
+      "name": "Create category (admin)",
+      "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "pm.collectionVariables.set('categoryId', body.id);"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Widgets\",\n  \"slug\": \"widgets\"\n}" },
+        "url": "{{baseUrl}}/categories"
+      }
+    },
+    {
+      "name": "Create product (admin)",
+      "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "pm.collectionVariables.set('productId', body.id);"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"sku\": \"WID-001\",\n  \"name\": \"Chrome Widget\",\n  \"slug\": \"chrome-widget\",\n  \"price\": 19.99,\n  \"initialQuantity\": 50\n}" },
+        "url": "{{baseUrl}}/products"
+      }
+    },
+    {
+      "name": "Search products (public)",
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/products?q=widget" }
+    },
+    {
+      "name": "Seed customer's wallet (admin)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"balance\": 500,\n  \"currency\": \"USD\"\n}" },
+        "url": "{{baseUrl}}/wallets/PASTE_CUSTOMER_USER_ID_HERE/seed"
+      },
+      "description": "Paste the customer's user id (decode their accessToken's `sub` claim, or check auth_db) into the URL."
+    },
+    {
+      "name": "Checkout (REST -> gRPC to Order)",
+      "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "pm.collectionVariables.set('orderId', body.id);"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{customerAccessToken}}" }],
+        "body": { "mode": "raw", "raw": "{\n  \"items\": [\n    { \"productId\": \"{{productId}}\", \"quantity\": 2 }\n  ]\n}" },
+        "url": "{{baseUrl}}/orders"
+      }
+    },
+    {
+      "name": "Get order status",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerAccessToken}}" }],
+        "url": "{{baseUrl}}/orders/{{orderId}}"
+      },
+      "description": "Call this a couple of times a second or two apart — status should move pending -> awaiting_payment -> confirmed as the saga plays out asynchronously."
+    },
+    {
+      "name": "Get payment for order (REST -> gRPC to Payment)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerAccessToken}}" }],
+        "url": "{{baseUrl}}/payments/order/{{orderId}}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package micromart.payment;
+
+service PaymentService {
+  rpc GetPayment(GetPaymentRequest) returns (PaymentResponse);
+}
+
+message GetPaymentRequest {
+  string order_id = 1;
+}
+
+message PaymentResponse {
+  bool found = 1;
+  string id = 2;
+  string order_id = 3;
+  string user_id = 4;
+  double amount = 5;
+  string currency = 6;
+  string status = 7; // "succeeded" or "failed"
+  string failure_reason = 8;
+}

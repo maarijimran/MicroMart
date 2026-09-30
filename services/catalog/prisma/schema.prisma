@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Category {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String     @unique
+  parentId  String?    @map("parent_id") @db.Uuid
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+  products  Product[]
+  createdAt DateTime   @default(now()) @db.Timestamptz(3) @map("created_at")
+
+  @@map("categories")
+}
+
+model Product {
+  id           String                 @id @default(uuid()) @db.Uuid
+  categoryId   String                 @map("category_id") @db.Uuid
+  category     Category               @relation(fields: [categoryId], references: [id])
+  sku          String                 @unique
+  name         String
+  slug         String                 @unique
+  description  String?
+  price        Decimal                @db.Decimal(10, 2)
+  currency     String                 @default("USD") @db.Char(3)
+  isActive     Boolean                @default(true) @map("is_active")
+  createdAt    DateTime               @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt    DateTime               @updatedAt @db.Timestamptz(3) @map("updated_at")
+  inventory    Inventory?
+  reservations InventoryReservation[]
+  images       ProductImage[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+// Image bytes live in object storage (S3-compatible); this table only holds
+// the object key. The public URL is derived at read time from
+// S3_PUBLIC_URL, so moving to a CDN never needs a data migration.
+model ProductImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  key       String   @unique
+  position  Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
+
+  @@unique([productId, position])
+  @@map("product_images")
+}
+
+model Inventory {
+  productId         String   @id @map("product_id") @db.Uuid
+  product           Product  @relation(fields: [productId], references: [id])
+  quantityAvailable Int      @default(0) @map("quantity_available")
+  quantityReserved  Int      @default(0) @map("quantity_reserved")
+  updatedAt         DateTime @updatedAt @db.Timestamptz(3) @map("updated_at")
+
+  @@map("inventory")
+}
+
+enum ReservationStatus {
+  pending
+  confirmed
+  released
+}
+
+model InventoryReservation {
+  id        String             @id @default(uuid()) @db.Uuid
+  orderId   String             @map("order_id") @db.Uuid
+  productId String             @map("product_id") @db.Uuid
+  product   Product            @relation(fields: [productId], references: [id])
+  quantity  Int
+  status    ReservationStatus  @default(pending)
+  createdAt DateTime           @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt DateTime           @updatedAt @db.Timestamptz(3) @map("updated_at")
+
+  @@unique([orderId, productId])
+  @@index([orderId])
+  @@map("inventory_reservations")
+}

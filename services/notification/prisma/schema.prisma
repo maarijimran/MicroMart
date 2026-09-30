@@ -1,0 +1,22 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// This service has no real business data of its own — this table exists
+// purely as the durable idempotency backstop behind the Redis pre-check,
+// and to give you something to inspect confirming a notification "sent".
+model NotificationLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  orderId   String   @map("order_id") @db.Uuid
+  eventType String   @map("event_type")
+  channel   String   @default("email")
+  message   String
+  createdAt DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
+
+  @@unique([orderId, eventType])
+  @@map("notifications_log")
+}

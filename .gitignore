@@ -1,4 +1,33 @@
+# Dependencies & build output
 node_modules/
 dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Secrets — every service's real .env stays local; .env.example is committed
 .env
+.env.*
+!.env.example
+
+# Synthetic test logins (working passwords for the local stack)
+seed/seed-users.json
+
+# Load-test output and the downloaded k6 binary
+loadtest/results/
+loadtest/.bin/
+
+# Logs
 *.log
+
+# Editor / AI-assistant files generated per machine
+# (e.g. `prisma skills sync` writes these into services on npm install)
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

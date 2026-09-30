@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+/* ---------- Design tokens (light marketplace theme) ---------- */
+:root {
+  --bg: #f5f5f5;
+  --elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-strong: #ffffff;
+  --panel: #f7f7f7;
+  --line: #ececec;
+  --line-strong: #dcdcdc;
+  --fg: #1f1f1f;
+  --muted: #5f5f5f;
+  --subtle: #9a9a9a;
+  --accent: #ee4d2d;
+  --accent-hover: #d7401f;
+  --accent-soft: #fff1ed;
+  --star: #f5a623;
+  --success: #16a34a;
+  --success-soft: #eaf7ee;
+  --warning: #d97706;
+  --warning-soft: #fdf3e3;
+  --danger: #dc2626;
+  --danger-soft: #fdecec;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 10px 30px -8px rgb(0 0 0 / 0.14);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-elevated: var(--elevated);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-star: var(--star);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --shadow-card: var(--shadow);
+  --shadow-float: var(--shadow-lg);
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Tighter, more conventional corner radii than Tailwind's defaults. */
+@theme {
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.75rem;
+  --radius-3xl: 0.875rem;
+}
+
+/* ---------- Base ---------- */
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--elevated);
+  color: var(--fg);
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--fg);
+}
+
+/* Plain white card surface (name kept so every page shares one surface style). */
+@utility glass {
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+@utility bg-brand {
+  background: var(--accent);
+}
+
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--elevated), 0 0 0 4px var(--accent);
+  }
+}
+
+/* Custom checkbox / radio matching the orange accent. */
+@utility check {
+  appearance: none;
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 0.3rem;
+  background: var(--elevated) center / 0.75rem no-repeat;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+  &:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ---------- Motion ---------- */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #eeeeee;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.7), transparent);
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes ping-soft {
+  75%,
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+.animate-ping-soft {
+  animation: ping-soft 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}

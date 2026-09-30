@@ -1,21 +1,16 @@
 import { Module } from '@nestjs/common';
-import { createObserveModule } from '@nestjs/observe';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-
-export const { ObserveModule, ObserveInstrument } = createObserveModule();
+import { HealthController } from './health.controller';
+import { AuthController } from './auth.controller';
+import { CatalogController } from './catalog.controller';
+import { OrderController } from './order.controller';
+import { PaymentController } from './payment.controller';
+import { ProxyService } from './proxy.service';
+import { RedisService } from './redis.service';
+import { OrderClient } from './order.client';
+import { PaymentClient } from './payment.client';
 
 @Module({
-  imports: [
-    // Distributed tracing, auto-correlated logs, request/job metrics, error
-    // telemetry, alarms, and more — out of the box. Sign up at https://observe.nestjs.com
-    ObserveModule.forRoot({
-      appKey: 'YOUR_APP_KEY',
-      appSecret: 'YOUR_APP_SECRET',
-      serviceId: 'gateway',
-    }),
-  ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [HealthController, AuthController, CatalogController, OrderController, PaymentController],
+  providers: [ProxyService, RedisService, OrderClient, PaymentClient],
 })
 export class AppModule {}

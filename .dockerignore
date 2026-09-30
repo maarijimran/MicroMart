@@ -1,0 +1,17 @@
+# Every image builds from the repo root (so ../proto resolves inside the image
+# the same way it does locally) — this keeps the build context small and stops
+# host artifacts from leaking in.
+.git
+.github
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/.env
+**/*.log
+**/.agents
+**/.claude
+**/.windsurf
+**/postman
+**/test
+**/coverage
+infra

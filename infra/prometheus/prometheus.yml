@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Add one block per NestJS service once it exposes a /metrics endpoint.
+  # Use the service's container name (once it's added to this compose file
+  # or joined to the micromart-net network) instead of localhost.
+  # Example, once your gateway exposes metrics on port 3000:
+  # - job_name: "gateway"
+  #   static_configs:
+  #     - targets: ["gateway:3000"]

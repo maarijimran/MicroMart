@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrderStatus {
+  pending
+  awaiting_payment
+  confirmed
+  cancelled
+}
+
+enum SagaEventDirection {
+  published
+  consumed
+}
+
+model Order {
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String      @map("user_id") @db.Uuid
+  status      OrderStatus @default(pending)
+  totalAmount Decimal     @map("total_amount") @db.Decimal(10, 2)
+  currency    String      @db.Char(3)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(3) @map("updated_at")
+  items       OrderItem[]
+  sagaEvents  SagaEvent[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                String  @id @default(uuid()) @db.Uuid
+  orderId           String  @map("order_id") @db.Uuid
+  order             Order   @relation(fields: [orderId], references: [id])
+  productId         String  @map("product_id") @db.Uuid
+  productNameSnapshot String @map("product_name_snapshot")
+  unitPriceSnapshot Decimal @map("unit_price_snapshot") @db.Decimal(10, 2)
+  quantity          Int
+  subtotal          Decimal @db.Decimal(10, 2)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model SagaEvent {
+  id        String             @id @default(uuid()) @db.Uuid
+  orderId   String             @map("order_id") @db.Uuid
+  order     Order              @relation(fields: [orderId], references: [id])
+  eventType String             @map("event_type")
+  direction SagaEventDirection
+  payload   Json
+  createdAt DateTime           @default(now()) @db.Timestamptz(3) @map("created_at")
+
+  @@unique([orderId, eventType, direction])
+  @@index([orderId, eventType])
+  @@map("saga_events")
+}

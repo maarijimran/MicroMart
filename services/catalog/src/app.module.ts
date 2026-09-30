@@ -1,21 +1,24 @@
 import { Module } from '@nestjs/common';
-import { createObserveModule } from '@nestjs/observe';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-
-export const { ObserveModule, ObserveInstrument } = createObserveModule();
+import { CatalogController } from './catalog.controller';
+import { CatalogGrpcController } from './catalog.grpc.controller';
+import { CatalogConsumer } from './catalog.consumer';
+import { CatalogService } from './catalog.service';
+import { ElasticsearchService } from './elasticsearch.service';
+import { PrismaService } from './prisma.service';
+import { RabbitMqService } from './rabbitmq.service';
+import { RedisService } from './redis.service';
+import { StorageService } from './storage.service';
 
 @Module({
-  imports: [
-    // Distributed tracing, auto-correlated logs, request/job metrics, error
-    // telemetry, alarms, and more — out of the box. Sign up at https://observe.nestjs.com
-    ObserveModule.forRoot({
-      appKey: 'YOUR_APP_KEY',
-      appSecret: 'YOUR_APP_SECRET',
-      serviceId: 'catalog',
-    }),
+  controllers: [CatalogController, CatalogGrpcController],
+  providers: [
+    CatalogService,
+    PrismaService,
+    RedisService,
+    ElasticsearchService,
+    RabbitMqService,
+    StorageService,
+    CatalogConsumer,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}

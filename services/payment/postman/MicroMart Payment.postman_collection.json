@@ -1,0 +1,74 @@
+{
+  "info": {
+    "name": "MicroMart Payment",
+    "description": "Local smoke tests for the fake Payment service. Run 'Login (Auth service)' and 'Login as admin' first.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3004" },
+    { "key": "authBaseUrl", "value": "http://localhost:3001" },
+    { "key": "customerAccessToken", "value": "" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "customerUserId", "value": "" },
+    { "key": "orderId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Login as customer (Auth service)",
+      "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "pm.collectionVariables.set('customerAccessToken', body.accessToken);"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"ada@example.com\",\n  \"password\": \"StrongPass1!\"\n}" },
+        "url": "{{authBaseUrl}}/auth/login"
+      },
+      "description": "Paste this user's id (from the JWT `sub` claim, or straight from auth_db) into customerUserId before running 'Seed wallet'."
+    },
+    {
+      "name": "Login as admin (Auth service)",
+      "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "pm.collectionVariables.set('adminAccessToken', body.accessToken);"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"StrongPass1!\"\n}" },
+        "url": "{{authBaseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "Seed wallet (admin)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"balance\": 500,\n  \"currency\": \"USD\"\n}" },
+        "url": "{{baseUrl}}/wallets/{{customerUserId}}/seed"
+      }
+    },
+    {
+      "name": "Get my wallet",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerAccessToken}}" }],
+        "url": "{{baseUrl}}/wallets/me"
+      }
+    },
+    {
+      "name": "List my payments",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerAccessToken}}" }],
+        "url": "{{baseUrl}}/payments?page=1&pageSize=20"
+      }
+    },
+    {
+      "name": "Get payment by order id",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerAccessToken}}" }],
+        "url": "{{baseUrl}}/payments/{{orderId}}"
+      }
+    }
+  ]
+}

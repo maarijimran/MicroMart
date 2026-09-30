@@ -1,0 +1,128 @@
+version: "3.9"
+
+networks:
+  micromart-net:
+    driver: bridge
+
+volumes:
+  redis-data:
+  rabbitmq-data:
+  es-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  tempo-data:
+  object-storage-data:
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: micromart-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - micromart-net
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: micromart-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP protocol port - your services connect here
+      - "15672:15672" # Management UI - open in a browser
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - micromart-net
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: micromart-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      - micromart-net
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: micromart-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - micromart-net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: micromart-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - micromart-net
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+
+  loki:
+    image: grafana/loki:latest
+    container_name: micromart-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+    networks:
+      - micromart-net
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: micromart-tempo
+    command: -config.file=/etc/tempo/tempo.yaml
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo API
+      - "4317:4317"   # OTLP gRPC receiver - your services send traces here
+      - "4318:4318"   # OTLP HTTP receiver
+    networks:
+      - micromart-net
+    restart: unless-stopped
+
+  # S3-compatible object storage for product images. Local development only —
+  # production points the Catalog service's S3_* settings at AWS S3 (or R2, etc.).
+  # The catalog identity can write; anonymous visitors can only read product
+  # images (see seaweedfs/s3.json — local-only credentials, never reuse them).
+  object-storage:
+    image: chrislusf/seaweedfs:3.99
+    container_name: micromart-object-storage
+    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json -master.volumeSizeLimitMB=1024
+    ports:
+      - "8333:8333"   # S3 API (also serves the public image URLs)
+    volumes:
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+      - object-storage-data:/data
+    networks:
+      - micromart-net
+    restart: unless-stopped

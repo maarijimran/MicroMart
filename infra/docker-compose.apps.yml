@@ -1,0 +1,160 @@
+# Overlay file — layer this on top of docker-compose.yml, don't run it alone:
+#   docker compose -f docker-compose.yml -f docker-compose.apps.yml up -d --build --scale gateway=3
+#
+# Put a JWT_SECRET=... line in infra/.env (create it, it's gitignored) —
+# Compose reads that automatically and ${JWT_SECRET} below picks it up.
+# It must be the exact same value already in every service's own .env.
+#
+# Every `build.context` is the repo root (`..`) rather than the app's own
+# folder: the apps load .proto files from ../proto at runtime, so each image
+# has to contain proto/ alongside the app. Each Dockerfile documents this.
+#
+# This mode containerizes and scales the app services themselves — a
+# separate, occasional exercise from your normal day-to-day
+# `npm run start:dev` workflow, not a replacement for it.
+version: "3.9"
+
+networks:
+  micromart-net:
+    driver: bridge
+
+services:
+  auth:
+    build:
+      context: ..
+      dockerfile: services/auth/Dockerfile
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    networks: [micromart-net]
+    ports: ["3001:3001"]
+    environment:
+      PORT: 3001
+      GRPC_URL: "0.0.0.0:50051"
+      DATABASE_URL: "postgresql://postgres:yourpassword@host.docker.internal:5432/auth_db"
+      REDIS_URL: "redis://redis:6379"
+      JWT_SECRET: "${JWT_SECRET}"
+      OTEL_SERVICE_NAME: "micromart-auth"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+      OTEL_METRICS_PORT: 9461
+    depends_on: [redis]
+
+  catalog:
+    build:
+      context: ..
+      dockerfile: services/catalog/Dockerfile
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    networks: [micromart-net]
+    ports: ["3002:3002"]
+    environment:
+      PORT: 3002
+      GRPC_URL: "0.0.0.0:50052"
+      DATABASE_URL: "postgresql://postgres:yourpassword@host.docker.internal:5432/catalog_db"
+      REDIS_URL: "redis://redis:6379"
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672"
+      ELASTICSEARCH_URL: "http://elasticsearch:9200"
+      JWT_SECRET: "${JWT_SECRET}"
+      # Catalog talks to storage over the Docker network, but S3_PUBLIC_URL is
+      # what browsers load images from, so it stays on localhost.
+      S3_ENDPOINT: "http://object-storage:8333"
+      S3_REGION: "us-east-1"
+      S3_BUCKET: "micromart-products"
+      S3_ACCESS_KEY_ID: "micromart"
+      S3_SECRET_ACCESS_KEY: "micromart-local-secret"
+      S3_FORCE_PATH_STYLE: "true"
+      S3_AUTO_CREATE_BUCKET: "true"
+      S3_PUBLIC_URL: "http://localhost:8333/micromart-products"
+      OTEL_SERVICE_NAME: "micromart-catalog"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+      OTEL_METRICS_PORT: 9462
+    depends_on: [redis, rabbitmq, elasticsearch, object-storage]
+
+  order:
+    build:
+      context: ..
+      dockerfile: services/order/Dockerfile
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    networks: [micromart-net]
+    ports: ["3003:3003"]
+    environment:
+      PORT: 3003
+      GRPC_URL: "0.0.0.0:50053"
+      DATABASE_URL: "postgresql://postgres:yourpassword@host.docker.internal:5432/order_db"
+      REDIS_URL: "redis://redis:6379"
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672"
+      CATALOG_GRPC_URL: "catalog:50052"
+      JWT_SECRET: "${JWT_SECRET}"
+      OTEL_SERVICE_NAME: "micromart-order"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+      OTEL_METRICS_PORT: 9463
+    depends_on: [redis, rabbitmq, catalog]
+
+  payment:
+    build:
+      context: ..
+      dockerfile: services/payment/Dockerfile
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    networks: [micromart-net]
+    ports: ["3004:3004"]
+    environment:
+      PORT: 3004
+      GRPC_URL: "0.0.0.0:50054"
+      DATABASE_URL: "postgresql://postgres:yourpassword@host.docker.internal:5432/payment_db"
+      REDIS_URL: "redis://redis:6379"
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672"
+      JWT_SECRET: "${JWT_SECRET}"
+      RANDOM_SUCCESS_RATE: 1
+      OTEL_SERVICE_NAME: "micromart-payment"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+      OTEL_METRICS_PORT: 9464
+    depends_on: [redis, rabbitmq]
+
+  notification:
+    build:
+      context: ..
+      dockerfile: services/notification/Dockerfile
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    networks: [micromart-net]
+    ports: ["3005:3005"]
+    environment:
+      PORT: 3005
+      DATABASE_URL: "postgresql://postgres:yourpassword@host.docker.internal:5432/notification_db"
+      REDIS_URL: "redis://redis:6379"
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672"
+      JWT_SECRET: "${JWT_SECRET}"
+      OTEL_SERVICE_NAME: "micromart-notification"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+      OTEL_METRICS_PORT: 9465
+    depends_on: [redis, rabbitmq]
+
+  # No `container_name` and no fixed host `ports` here — both are
+  # incompatible with `--scale`: a fixed name or a fixed host port can only
+  # ever belong to one container, but --scale creates several. Nginx is the
+  # only thing that talks to gateway directly; nothing else needs to.
+  gateway:
+    build:
+      context: ..
+      dockerfile: gateway/Dockerfile
+    networks: [micromart-net]
+    environment:
+      PORT: 3000
+      CORS_ORIGIN: "http://localhost:8080"
+      REDIS_URL: "redis://redis:6379"
+      JWT_SECRET: "${JWT_SECRET}"
+      AUTH_URL: "http://auth:3001"
+      CATALOG_URL: "http://catalog:3002"
+      PAYMENT_URL: "http://payment:3004"
+      ORDER_GRPC_URL: "order:50053"
+      PAYMENT_GRPC_URL: "payment:50054"
+      OTEL_SERVICE_NAME: "micromart-gateway"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+      OTEL_METRICS_PORT: 9460
+    depends_on: [redis, auth, catalog, order, payment]
+
+  nginx:
+    image: nginx:alpine
+    container_name: micromart-nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80"
+    networks: [micromart-net]
+    depends_on: [gateway]

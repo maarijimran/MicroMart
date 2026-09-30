@@ -1,21 +1,13 @@
 import { Module } from '@nestjs/common';
-import { createObserveModule } from '@nestjs/observe';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-
-export const { ObserveModule, ObserveInstrument } = createObserveModule();
+import { NotificationController } from './notification.controller';
+import { NotificationConsumer } from './notification.consumer';
+import { NotificationService } from './notification.service';
+import { PrismaService } from './prisma.service';
+import { RabbitMqService } from './rabbitmq.service';
+import { RedisService } from './redis.service';
 
 @Module({
-  imports: [
-    // Distributed tracing, auto-correlated logs, request/job metrics, error
-    // telemetry, alarms, and more — out of the box. Sign up at https://observe.nestjs.com
-    ObserveModule.forRoot({
-      appKey: 'YOUR_APP_KEY',
-      appSecret: 'YOUR_APP_SECRET',
-      serviceId: 'notification',
-    }),
-  ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [NotificationController],
+  providers: [NotificationService, PrismaService, RedisService, RabbitMqService, NotificationConsumer],
 })
 export class AppModule {}

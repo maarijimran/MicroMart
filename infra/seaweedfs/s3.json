@@ -1,0 +1,13 @@
+{
+  "identities": [
+    {
+      "name": "catalog",
+      "credentials": [{ "accessKey": "micromart", "secretKey": "micromart-local-secret" }],
+      "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+    },
+    {
+      "name": "anonymous",
+      "actions": ["Read:micromart-products"]
+    }
+  ]
+}

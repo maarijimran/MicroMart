@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: test (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Gateway lives at the repo root (`gateway/`), the rest under `services/`.
+      matrix:
+        include:
+          - { service: gateway, path: gateway }
+          - { service: auth, path: services/auth }
+          - { service: catalog, path: services/catalog }
+          - { service: order, path: services/order }
+          - { service: payment, path: services/payment }
+          - { service: notification, path: services/notification }
+    defaults:
+      run:
+        working-directory: ${{ matrix.path }}
+    env:
+      # Only used by `prisma generate`, which never actually connects to a
+      # database — it just needs DATABASE_URL to resolve to *some* string.
+      # Gateway has no Prisma schema at all, so this is simply unused there.
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_db"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: ${{ matrix.path }}/package-lock.json
+
+      - run: npm ci
+
+      - name: Generate Prisma client
+        if: matrix.service != 'gateway'
+        run: npm run prisma:generate
+
+      - run: npm run lint
+
+      - run: npm test
+
+      - run: npm run test:e2e
+
+      - run: npm run build
+
+  # Runs only after every service in the matrix above has passed, and only
+  # for a push to main — never for a PR, and never if any test job failed.
+  # This is the actual "gate": branch protection (set up once, in the repo's
+  # Settings, not in this file) should require the `test` job to pass before
+  # a PR can be merged into main at all.
+  deploy:
+    name: deploy (self-hosted)
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install, generate, and build every service
+        shell: bash
+        run: |
+          set -e
+          for dir in gateway services/auth services/catalog services/order services/payment services/notification; do
+            svc=$(basename "$dir")
+            echo "::group::$svc"
+            pushd "$dir" > /dev/null
+            npm ci
+            if [ "$svc" != "gateway" ]; then
+              npm run prisma:generate
+              # migrate deploy (not `migrate dev`) — non-interactive, only
+              # applies migrations that already exist from your local
+              # `prisma migrate dev` runs. It never creates new migrations
+              # itself, so it can't hang waiting on a prompt with no TTY.
+              npx prisma migrate deploy
+            fi
+            npm run build
+            popd > /dev/null
+            echo "::endgroup::"
+          done
+
+      - name: Restart all services under PM2
+        shell: bash
+        run: |
+          npm install -g pm2
+          pm2 startOrReload infra/ecosystem.config.js
+          pm2 save
